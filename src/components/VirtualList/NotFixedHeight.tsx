@@ -125,6 +125,7 @@ export const VirtualList = () => {
                         return (<div key={item.id} style={{overflow: "hidden"}}>
                             <div style={{
                                 height: item.height,
+                                margin:'10px',
                                 background: "yellow",
                                 textAlign: "center"
                             }}>{item.content}</div>

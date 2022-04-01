@@ -11,7 +11,7 @@ interface contentItem {
 }
 
 const temp: Array<contentItem> = []
-for (let i = 0; i < 50; i++) {
+for (let i = 0; i < 49500; i++) {
     temp.push({id: i + content1, height: 100, content: content1}, {
         id: i + content2,
         height: 200,
@@ -52,7 +52,6 @@ export const VirtualList = () => {
     useEffect(() => {
         //@ts-ignore
         const nodes = ref.current?.childNodes ?? []
-
         for (let i = 0; i < nodes.length; i++) {
             const node = nodes[i];
             const itemHeight = node.clientHeight;
@@ -73,32 +72,37 @@ export const VirtualList = () => {
         return () => {
 
         }
-    }, [ref.current])
+    }, [startIndex])
     /**methods 方法部分**/
         // @ts-ignore
-    const findStartIndex = (top) => {
-            let left = 0;
-            let right = positionData.length - 1
-            let mid = left + Math.floor((right - left) / 2)
-            while (left <= right) {
-                mid = left + Math.floor((right - left) / 2)
-                console.log(left + Math.floor((right - left) / 2))
-                let bottom = positionData[mid].bottom
-                if (bottom < top) {
-                    left = mid + 1
-                } else if (bottom > top) {
-                    right = mid - 1
-                } else {
-                    break
+    const findStartIndex = (scrollTop) => {
+            let start = 0;
+            let end = positionData.length - 1;
+            let tempIndex = null;
+            while(start <= end){
+                let midIndex = Math.floor((start + end)/2)
+                let midValue = positionData[midIndex].bottom;
+                if(midValue === scrollTop){
+                    return midIndex + 1;
+                }else if(midValue < scrollTop){
+                    start = midIndex + 1;
+                }else if(midValue > scrollTop){
+                    if(tempIndex === null || tempIndex > midIndex){
+                        tempIndex = midIndex;
+                    }
+                    end = end - 1;
                 }
             }
-            return mid
+            return tempIndex;
+
         }
     const onScrollCallback = (event: any) => {
         const {scrollTop} = event.target
         let start = findStartIndex(scrollTop)
         if (start !== startIndex) {
+            // @ts-ignore
             start = Math.min(positionData.length - nodeCounts + 1, start)
+
             setStartIndex(start)
         }
 

@@ -1,5 +1,9 @@
 import {useEffect, useState, useMemo, useRef} from 'react'
+import UpdateWorker from './updateWorker?worker'
+import FindStartIndexWorker from './findStartIndexWorker?worker'
 
+const findStartIndexWorker = new FindStartIndexWorker()
+const updateWorker = new UpdateWorker()
 const content1 = '111'.repeat(100)
 const content2 = '22222222'.repeat(100)
 const content3 = '3'.repeat(100)
@@ -19,7 +23,7 @@ for (let i = 0; i < 50; i++) {
     }, {id: i + content3, height: 300, content: content3})
 }
 temp.push({id: '121321312312', height: 200, content: 'end'})
-const positionData: Array<{ top: number, dValue: number, height: number, bottom: number }> = []
+let positionData: Array<{ top: number, dValue: number, height: number, bottom: number }> = []
 for (let i = 0; i < temp.length; i++) {
     let top = i * 150
     positionData.push({
@@ -29,7 +33,6 @@ for (let i = 0; i < temp.length; i++) {
         bottom: top + 150,
     })
 }
-
 
 export const VirtualList = () => {
 
@@ -51,32 +54,27 @@ export const VirtualList = () => {
     }, [startIndex])
     useEffect(() => {
         //@ts-ignore
-        const nodes = ref.current?.childNodes ?? []
+        const doms = [...ref.current?.childNodes]
+        const nodes = doms.map(item => ({clientHeight: item.clientHeight}))
+        let promise = new Promise<{ data: [] }>(((resolve, reject) => {
 
-        for (let i = 0; i < nodes.length; i++) {
-            const node = nodes[i];
-            const itemHeight = node.clientHeight;
-            const positionItem = positionData[i + startIndex]
-            const dValue = itemHeight - positionItem.height;
+            updateWorker.postMessage({nodes, startIndex, positionData})
+            updateWorker.addEventListener('message', (data) => {
+                resolve(data)
+            })
+        }))
+        promise.then(res => {
+            positionData = res.data
+        })
 
-            if (dValue) {
-                positionItem.dValue = dValue
-                positionItem.height = itemHeight;
-                positionItem.bottom = positionItem.bottom + dValue
-                for (let j = i + startIndex + 1; j < positionData.length; j++) {
-                    const nextItem = positionData[j]
-                    nextItem.top = nextItem.top + dValue
-                    nextItem.bottom = nextItem.bottom + dValue
-                }
-            }
-        }
+
         return () => {
 
         }
     }, [ref.current])
     /**methods 方法部分**/
         // @ts-ignore
-    const findStartIndex = (top) => {
+    const findStartIndex = (top, positionData) => {
             let left = 0;
             let right = positionData.length - 1
             let mid = left + Math.floor((right - left) / 2)
@@ -96,12 +94,19 @@ export const VirtualList = () => {
         }
     const onScrollCallback = (event: any) => {
         const {scrollTop} = event.target
-        let start = findStartIndex(scrollTop)
-        if (start !== startIndex) {
-            start = Math.min(positionData.length - nodeCounts + 1, start)
-            setStartIndex(start)
-        }
-
+        let promise = new Promise<{ data: number }>(((resolve, reject) => {
+            findStartIndexWorker.postMessage({scrollTop, positionData})
+            findStartIndexWorker.addEventListener('message', (data) => {
+                resolve(data)
+            })
+        }))
+        promise.then(res => {
+            let start = res.data
+            if (start !== startIndex) {
+                start = Math.min(positionData.length - nodeCounts + 1, start)
+                setStartIndex(start)
+            }
+        })
     }
 
 
@@ -121,11 +126,11 @@ export const VirtualList = () => {
              onScroll={onScrollCallback}>
             <div style={{width: 500, height: positionData[positionData.length - 1].bottom, position: "absolute"}}></div>
             <div style={{transform: `translate3d(0,${offset}px,0)`}} ref={ref}>
-                {currentData.map((item:contentItem) => {
+                {currentData.map((item: contentItem) => {
                         return (<div key={item.id} style={{overflow: "hidden"}}>
                             <div style={{
                                 height: item.height,
-                                margin:'10px',
+                                margin: '10px',
                                 background: "yellow",
                                 textAlign: "center"
                             }}>{item.content}</div>
